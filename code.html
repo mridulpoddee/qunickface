@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qunick — Professional Face Analysis</title>
+
+    <!-- External Fonts and Libraries -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        /* --- General Styles for the Widget --- */
+        :root {
+            --bg-color: #0A0C10; --primary-text: #E6EDF3; --secondary-text: #8B949E;
+            --glass-bg: linear-gradient(135deg, rgba(30, 41, 59, 0.4), rgba(13, 17, 23, 0.2));
+            --glass-border: 1px solid rgba(255, 255, 255, 0.1); --neon-pink: #F72585;
+            --neon-blue: #4CC9F0; --action-gradient: linear-gradient(90deg, var(--neon-pink), var(--neon-blue));
+            --card-overlay-bg: linear-gradient(145deg, #c31432, #240b36);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', sans-serif; background-color: var(--bg-color);
+            background-image: radial-gradient(ellipse at top, #1b2735 0%, #090a0f 100%);
+            color: var(--primary-text); display: flex; flex-direction: column;
+            align-items: center; min-height: 100vh; padding: 1.5rem; overflow-x: hidden;
+        }
+        .site-header {
+            font-size: 1.5rem; font-weight: 700; letter-spacing: 1px; margin-bottom: 2rem;
+            background: var(--action-gradient); -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        .main-container {
+            width: 100%; max-width: 1200px; display: flex; justify-content: center;
+            align-items: flex-start; gap: 2rem; flex-wrap: wrap;
+        }
+        .panel {
+            background: var(--glass-bg); border: var(--glass-border); backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px); border-radius: 24px; padding: 2rem;
+            width: 100%; flex-shrink: 0; transition: opacity 0.5s, transform 0.5s;
+        }
+        .upload-panel { max-width: 500px; text-align: center; }
+        .upload-panel h1 { font-size: 2.5rem; color: var(--primary-text); }
+        .upload-panel .tagline { font-size: 1.1rem; color: var(--secondary-text); margin-bottom: 1.5rem; }
+        #upload-form { display: flex; flex-direction: column; gap: 1.5rem; }
+        .form-input {
+            background: rgba(0,0,0,0.25); border: 1px solid var(--secondary-text); border-radius: 12px;
+            padding: 1rem; color: var(--primary-text); font-size: 1rem; transition: all 0.3s;
+            -webkit-appearance: none; appearance: none; width: 100%;
+        }
+        .form-input:focus { border-color: var(--neon-blue); box-shadow: 0 0 10px rgba(76, 201, 240, 0.5); outline: none; }
+        select.form-input { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%238B949E' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 1em; padding-right: 2.5rem; }
+        .file-upload-label {
+            border: 2px dashed var(--secondary-text); border-radius: 12px; padding: 2.5rem 1rem;
+            cursor: pointer; transition: all 0.3s; color: var(--secondary-text);
+        }
+        .file-upload-label.has-file { border-color: var(--neon-blue); color: var(--primary-text); font-weight: 500;}
+        .file-upload-label:hover { background: rgba(255, 255, 255, 0.05); border-color: var(--primary-text); }
+        #file-upload { display: none; }
+        .submit-btn {
+            background: var(--action-gradient); border: none; border-radius: 12px; padding: 1rem;
+            color: #fff; font-size: 1.2rem; font-weight: 600; cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.3s;
+        }
+        .submit-btn:hover:not(:disabled) { transform: scale(1.03); box-shadow: 0 0 20px rgba(247, 37, 133, 0.5); }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none;}
+        .loader-panel { display: none; flex-direction: column; align-items: center; justify-content: center; gap: 1.5rem; min-height: 400px; max-width: 500px; }
+        .loader {
+            width: 60px; height: 60px; border-radius: 50%; display: inline-block;
+            border-top: 4px solid var(--neon-pink); border-right: 4px solid transparent;
+            box-sizing: border-box; animation: spin 1s linear infinite;
+        }
+        #loader-text { color: var(--secondary-text); font-weight: 500; transition: opacity 0.3s; text-align: center; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .result-container {
+            display: none; width: 100%; justify-content: center;
+            align-items: flex-start; gap: 2rem; flex-wrap: wrap;
+            animation: fadeInResult 0.5s ease-out forwards;
+        }
+        @keyframes fadeInResult { from { opacity: 0; } to { opacity: 1; } }
+        .result-card-display { width: 100%; max-width: 380px; flex-shrink: 0; }
+        #result-card {
+            width: 100%; aspect-ratio: 1080 / 1920; border-radius: 24px; position: relative;
+            overflow: hidden; box-shadow: 0 15px 50px rgba(0,0,0,0.6); background: var(--card-overlay-bg);
+            transition: background 0.5s ease;
+        }
+        .card-content {
+            position: relative; z-index: 2; display: flex; flex-direction: column;
+            align-items: center; height: 100%; padding: 1.5rem 1.5rem 1rem; text-align: center; isolation: isolate;
+        }
+        .card-content::after {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.75) 45%, rgba(0,0,0,0.2) 75%, rgba(0,0,0,0) 90%);
+            z-index: -1; border-radius: 24px;
+        }
+        .card-content > * { opacity: 0; transform: translateY(20px); transition: all 0.6s ease-out; }
+        .card-content.visible > * { opacity: 1; transform: translateY(0); }
+        .card-content.visible .profile-pic-container { transition-delay: 0.2s; }
+        .card-content.visible .overall-score-container { transition-delay: 0.4s; }
+        .card-content.visible #result-name { transition-delay: 0.6s; }
+        .card-content.visible .ai-comment-box { transition-delay: 0.8s; }
+        .card-content.visible .ratings-grid { transition-delay: 1.0s; }
+        .card-content.visible .card-footer { transition-delay: 1.2s; }
+        .profile-pic-container {
+            width: 130px; height: 130px; margin-top: 1rem; border-radius: 50%;
+            border: 4px solid rgba(255, 255, 255, 0.7); background: #222;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.6), inset 0 0 8px rgba(0,0,0,0.5);
+            flex-shrink: 0; overflow: hidden;
+        }
+        #profile-pic { width: 100%; height: 100%; object-fit: cover; }
+        .overall-score-container { margin: 0.75rem 0; }
+        .overall-score-label {
+            font-size: 0.9rem; font-weight: 500; color: rgba(255, 255, 255, 0.85);
+            text-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+        .overall-score-value {
+            font-size: 3.2rem; font-weight: 800; line-height: 1; color: #FFFFFF;
+            margin-top: 0.2rem; text-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+        #result-name, #ai-comment, .rating-item { text-shadow: 0 2px 5px rgba(0,0,0,0.5); color: #FFFFFF; }
+        #result-name { font-size: 2rem; font-weight: 700; margin-top: 0.25rem;}
+        .ai-comment-box { margin-bottom: 0.75rem; margin-top: 0.5rem; }
+        #ai-comment { font-weight: 500; font-size: 1rem; font-style: italic; color: rgba(255,255,255,0.9); }
+        .ratings-grid {
+            width: 100%; margin-top: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;
+        }
+        .rating-item {
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px; padding: 0.6rem;
+        }
+        .rating-label { display: block; font-weight: 400; color: rgba(255, 255, 255, 0.8); font-size: 0.75rem; }
+        .rating-value { font-weight: 600; font-size: 0.9rem; margin-top: 0.2rem; }
+        .card-footer {
+            margin-top: auto; padding-bottom: 0.5rem; font-weight: 700; font-size: 1.4rem;
+            background: var(--action-gradient); -webkit-background-clip: text;
+            background-clip: text; color: transparent; opacity: 0.8;
+        }
+        .controls-panel { max-width: 450px; display: flex; flex-direction: column; gap: 1.5rem; }
+        .controls-panel h3 { font-size: 1.2rem; margin-bottom: 0.5rem; border-left: 3px solid var(--neon-pink); padding-left: 0.75rem; }
+        .btn {
+            background: rgba(255,255,255, 0.1); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px; padding: 1rem; color: var(--primary-text); font-size: 1rem;
+            font-weight: 500; cursor: pointer; text-align: center; text-decoration: none; transition: all 0.2s; display: block;
+        }
+        .btn:hover { background: rgba(255,255,255, 0.2); transform: translateY(-2px); border-color: rgba(255,255,255,0.4);}
+        .download-btn { background: var(--action-gradient) !important; color: #fff; font-weight: 600;}
+        .share-buttons-container { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+        .share-btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; color: #fff !important; border: none; }
+        .share-btn svg { width: 20px; height: 20px; }
+        .share-btn:hover { filter: brightness(1.1); }
+        #share-whatsapp { background: #25D366; }
+        #share-facebook { background: #1877F2; }
+        #share-instagram { background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%,#d6249f 60%,#285AEB 90%); }
+        .theme-qunick-glow { --card-overlay-bg: linear-gradient(145deg, var(--neon-blue), var(--neon-pink)); }
+        .theme-sigma-flow { --card-overlay-bg: linear-gradient(145deg, #121212, #242424); }
+        .theme-instagram-story { --card-overlay-bg: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); }
+        .theme-facebook-post { --card-overlay-bg: linear-gradient(145deg, #1877F2, #3b5998); }
+        .theme-neon-dark { --card-overlay-bg: linear-gradient(145deg, #000000, #434343); }
+        .theme-solar-flare { --card-overlay-bg: linear-gradient(145deg, #fceabb, #f8b500); }
+        .theme-ocean-drive { --card-overlay-bg: linear-gradient(145deg, #2193b0, #6dd5ed); }
+        .theme-royal-amethist { --card-overlay-bg: linear-gradient(145deg, #6a3093, #a044ff); }
+        .ad-banner-container {
+            width: 100%; max-width: 468px;
+            margin: 2.5rem auto 0;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .modal-overlay {
+            display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.6); justify-content: center; align-items: center;
+            animation: fadeInModal 0.3s ease;
+        }
+        .modal-content {
+            background: var(--glass-bg); border: var(--glass-border); backdrop-filter: blur(10px);
+            padding: 2rem; border-radius: 16px; text-align: center; max-width: 90%;
+            width: 450px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .modal-content h3 { font-size: 1.5rem; margin-bottom: 1rem; }
+        .modal-content p { color: var(--primary-text); margin-bottom: 1.5rem; line-height: 1.6; }
+        .modal-content ol { color: var(--primary-text); margin-left: 1.5rem; margin-bottom: 2rem; text-align: left; list-style-type: decimal; line-height: 1.8; display: flex; flex-direction: column; gap: 1rem; }
+        @keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } }
+
+        /* --- RESPONSIVE QUERIES --- */
+        @media (max-width: 860px) {
+            .main-container, .result-container { flex-direction: column; align-items: center; }
+            .panel { max-width: 500px; }
+        }
+        @media (max-width: 480px) {
+            body { padding: 1rem; }
+            .panel { padding: 1.5rem; }
+            .upload-panel h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="site-header">Qunick</header>
+
+    <div class="main-container" id="main-container">
+        <section class="panel upload-panel" id="upload-panel">
+            <h1>AI Face Analysis</h1>
+            <p class="tagline">Get your professional AI rating with stunning themes for social media!</p>
+            <form id="upload-form">
+                <input type="text" id="name-input" class="form-input" placeholder="Enter your name (required)" required>
+                <label for="file-upload" class="file-upload-label" id="file-label">Click to Upload Photo</label>
+                <input type="file" id="file-upload" accept="image/png, image/jpeg, image/webp" required>
+                <button type="submit" class="submit-btn" id="submit-btn" disabled>Analyze My Face</button>
+            </form>
+        </section>
+        <section class="panel loader-panel" id="loader-panel">
+            <div class="loader"></div><p id="loader-text">Initializing AI...</p>
+        </section>
+        <div class="result-container" id="result-container">
+            <div class="result-card-display">
+                <div id="result-card">
+                    <div class="card-content" id="card-content">
+                        <div class="profile-pic-container"><img id="profile-pic" src="" alt="User's profile picture"></div>
+                        <div class="overall-score-container">
+                            <div class="overall-score-label">Overall Score</div>
+                            <div class="overall-score-value" id="overall-score"></div>
+                        </div>
+                        <h2 id="result-name"></h2>
+                        <div class="ai-comment-box"><p id="ai-comment"></p></div>
+                        <div class="ratings-grid"></div>
+                        <div class="card-footer">Qunick</div>
+                    </div>
+                </div>
+            </div>
+            <div class="panel controls-panel">
+                <div><h3>Choose Your Style</h3><select id="theme-selector" class="form-input"><option value="theme-sigma-flow">Sigma Flow</option><option value="theme-qunick-glow">Qunick Glow</option><option value="theme-instagram-story">Instagram Story</option><option value="theme-facebook-post">Facebook Post</option><option value="theme-neon-dark">Neon Dark</option><option value="theme-solar-flare">Solar Flare</option><option value="theme-ocean-drive">Ocean Drive</option><option value="theme-royal-amethist">Royal Amethyst</option></select></div>
+                <button id="download-btn" class="btn download-btn">Download Image (1080p)</button>
+                <div><h3>Share Your Result</h3><div class="share-buttons-container"><a href="#" target="_blank" id="share-whatsapp" class="btn share-btn" aria-label="Share on WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.586-1.456l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.886-.001 2.269.655 4.398 1.849 6.22l-1.072 3.912 3.912-1.072z"/></svg>WhatsApp</a><a href="#" target="_blank" id="share-facebook" class="btn share-btn" aria-label="Share on Facebook"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v2.385z"/></svg>Facebook</a><button id="share-instagram" class="btn share-btn" aria-label="Share on Instagram"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.85s-.011 3.584-.069 4.85c-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07s-3.584-.012-4.85-.07c-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.85s.012-3.584.07-4.85c.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.85-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948s.014 3.667.072 4.947c.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072s3.667-.014 4.947-.072c4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.947s-.014-3.667-.072-4.947c-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.689-.073-4.948-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.162 6.162 6.162 6.162-2.759 6.162-6.162-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4s1.791-4 4-4 4 1.79 4 4-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.441 1.441 1.441 1.441-.645 1.441-1.441-.645-1.44-1.441-1.44z"/></svg>Instagram</button></div></div>
+                <button id="try-again-btn" class="btn">Analyze Another Face</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="error-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="color: var(--neon-pink);">Analysis Failed</h3>
+            <p id="error-modal-message"></p>
+            <button id="error-modal-close" class="submit-btn" style="width: 100%;">OK</button>
+        </div>
+    </div>
+    <div id="instagram-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Share to Instagram</h3>
+            <p style="color: var(--secondary-text);">To share your result on Instagram, please follow these steps:</p>
+            <ol>
+                <li>First, use the <strong style="color: var(--neon-blue);">Download Image</strong> button to save your result card to your device.</li>
+                <li>Open the Instagram app and create a new <strong style="color: var(--neon-pink);">Story or Post</strong>.</li>
+                <li>Select the downloaded image from your photo gallery to share it.</li>
+            </ol>
+            <button id="instagram-modal-close" class="submit-btn" style="width: 100%;">Got it!</button>
+        </div>
+    </div>
+
+    <div class="ad-banner-container">
+        <script type="text/javascript">
+            atOptions = { 'key' : 'ff7534214545e486a60dd69a7231f5a2', 'format' : 'iframe', 'height' : 60, 'width' : 468, 'params' : {} };
+        </script>
+        <script type="text/javascript" src="//www.highperformanceformat.com/ff7534214545e486a60dd69a7231f5a2/invoke.js"></script>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- CONFIGURATION ---
+            const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyPmDTQBU9vtOhSjNv3qrdAjo-oUAm6oXjeBqINtCdXfnDZ_lv4R-_Sw9HVkAlGQ3YUpg/exec';
+            const SITE_URL = 'https://qunick.web.app';
+
+            // =========================================================================================
+            // !!! CRITICAL SECURITY WARNING !!!
+            // Your Google AI API Key is exposed here. Anyone can view your website's source code,
+            // copy this key, and use it, which could result in a large bill on your account.
+            // For production, you should NEVER put an API key in client-side JavaScript.
+            // Consider using a serverless function (like Google Cloud Functions or a simple
+            // Google Apps Script web app) to act as a proxy for the API call.
+            // The key below is for demonstration and should be secured.
+            // =========================================================================================
+            const apiKey = "AIzaSyDMD6-PhMo4Ekk7GUwJtIyw7visUd6T0-Y";
+
+            // --- DOM Elements ---
+            const elements = {
+                uploadPanel: document.getElementById('upload-panel'), loaderPanel: document.getElementById('loader-panel'), resultContainer: document.getElementById('result-container'),
+                uploadForm: document.getElementById('upload-form'), nameInput: document.getElementById('name-input'), fileInput: document.getElementById('file-upload'),
+                fileLabel: document.getElementById('file-label'), submitBtn: document.getElementById('submit-btn'), loaderText: document.getElementById('loader-text'),
+                resultCard: document.getElementById('result-card'), cardContent: document.getElementById('card-content'), profilePic: document.getElementById('profile-pic'),
+                resultName: document.getElementById('result-name'), aiComment: document.getElementById('ai-comment'), overallScore: document.getElementById('overall-score'),
+                ratingsGrid: document.querySelector('.ratings-grid'), themeSelector: document.getElementById('theme-selector'), downloadBtn: document.getElementById('download-btn'),
+                tryAgainBtn: document.getElementById('try-again-btn'), shareWhatsapp: document.getElementById('share-whatsapp'), shareFacebook: document.getElementById('share-facebook'),
+                shareInstagram: document.getElementById('share-instagram'),
+                errorModal: document.getElementById('error-modal'), errorModalMessage: document.getElementById('error-modal-message'), errorModalClose: document.getElementById('error-modal-close'),
+                instagramModal: document.getElementById('instagram-modal'), instagramModalClose: document.getElementById('instagram-modal-close')
+            };
+
+            let uploadedFile = null;
+            let loaderInterval = null;
+
+            // --- CORE LOGIC ---
+            function submitToGoogleSheet(data) {
+                fetch(GOOGLE_SHEET_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) })
+                    .then(() => console.log('Data submission attempted.'))
+                    .catch(error => console.error('Error sending to Sheet:', error));
+            }
+
+            async function fileToGenerativePart(file) {
+                const base64EncodedDataPromise = new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                    reader.readAsDataURL(file);
+                });
+                return { inlineData: { data: await base64EncodedDataPromise, mimeType: file.type } };
+            }
+
+            async function callGeminiApi(imageFile) {
+                elements.loaderText.textContent = 'Contacting Google AI...';
+                const imagePart = await fileToGenerativePart(imageFile);
+                const model = 'gemini-1.5-flash-latest';
+                const prompt = `You are a sophisticated AI face analyzer named Qunick.
+                    Your first and most important task is to determine if a clear human face is the main subject of the image.
+                    If a human face is NOT found, you MUST return ONLY this exact JSON object:
+                    {"error": "No human face was detected. Please upload a clear photo of a person."}
+                    If a human face IS found, analyze it and return ONLY a valid JSON object with no other text or markdown formatting.
+                    The JSON structure must be exactly as follows, with ratings from 1.0 to 10.0 (one decimal place):
+                    {
+                        "face_rating": 8.5, "eyes_rating": 9.1, "nose_rating": 7.8, "smile_rating": 8.2,
+                        "smart_rating": 9.3, "hair_color": "Black", "eye_color": "Dark Brown",
+                        "attractiveness_score": 8.8, "comment": "You have a very striking and confident look!"
+                    }`;
+                const requestBody = { contents: [{ parts: [{text: prompt}, imagePart] }], generationConfig: { "responseMimeType": "application/json" } };
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody) });
+                if (!response.ok) {
+                    const errorBody = await response.text(); console.error("Google API Error Response:", errorBody);
+                    throw new Error(`Google AI Error: ${response.status} ${response.statusText}. The AI service might be temporarily unavailable or the API key is invalid.`);
+                }
+                const responseData = await response.json();
+                if (!responseData.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    console.error("Invalid response structure from AI:", responseData);
+                    throw new Error("Received an invalid or empty response from the AI. Please try again.");
+                }
+                const rawJsonText = responseData.candidates[0].content.parts[0].text;
+                try {
+                    const parsedJson = JSON.parse(rawJsonText);
+                    if (parsedJson.error) throw new Error(parsedJson.error);
+                    return parsedJson;
+                } catch (e) {
+                    console.error("AI response was not valid JSON:", rawJsonText);
+                    throw new Error("The AI failed to provide a valid analysis. Please try a different photo.");
+                }
+            }
+
+            async function displayResults(data) {
+                const sheetData = { ...data, name: elements.nameInput.value, timestamp: new Date().toISOString() };
+                submitToGoogleSheet(sheetData);
+                const imageURL = URL.createObjectURL(uploadedFile);
+                elements.profilePic.src = imageURL;
+                elements.resultName.textContent = elements.nameInput.value;
+                elements.aiComment.textContent = `"${data.comment}"`;
+                const scoresToAverage = [ data.attractiveness_score, data.face_rating, data.eyes_rating, data.smile_rating, data.smart_rating, data.nose_rating ];
+                const averageScore = scoresToAverage.reduce((sum, score) => sum + parseFloat(score), 0) / scoresToAverage.length;
+                elements.overallScore.textContent = averageScore.toFixed(1);
+                elements.ratingsGrid.innerHTML = '';
+                const ratingsToShow = [
+                    { label: 'Attractiveness', value: `${data.attractiveness_score}/10` }, { label: 'Face Rating', value: `${data.face_rating}/10` },
+                    { label: 'Eyes Rating', value: `${data.eyes_rating}/10` }, { label: 'Smile Rating', value: `${data.smile_rating}/10` },
+                    { label: 'Smartness', value: `${data.smart_rating}/10` }, { label: 'Nose Rating', value: `${data.nose_rating}/10` },
+                    { label: 'Hair Color', value: data.hair_color }, { label: 'Eye Color', value: data.eye_color }
+                ];
+                ratingsToShow.forEach(item => {
+                    const ratingItem = document.createElement('div');
+                    ratingItem.className = 'rating-item';
+                    ratingItem.innerHTML = `<span class="rating-label">${item.label}</span><span class="rating-value">${item.value}</span>`;
+                    elements.ratingsGrid.appendChild(ratingItem);
+                });
+                const shareMessage = encodeURIComponent(`I got an overall score of ${averageScore.toFixed(1)}/10 on Qunick! Check it out: ${SITE_URL}`);
+                const fbShareMessage = encodeURIComponent(`I got an overall score of ${averageScore.toFixed(1)}/10 on the Qunick AI Face Analyzer!`);
+                elements.shareWhatsapp.href = `https://api.whatsapp.com/send?text=${shareMessage}`;
+                elements.shareFacebook.href = `https://www.facebook.com/sharer/sharer.php?u=${SITE_URL}&quote=${fbShareMessage}`;
+                elements.resultCard.className = elements.themeSelector.value;
+                elements.loaderPanel.style.display = 'none';
+                elements.resultContainer.style.display = 'flex';
+                setTimeout(() => elements.cardContent.classList.add('visible'), 50);
+            }
+
+            function showLoader() {
+                elements.uploadPanel.style.display = 'none';
+                elements.loaderPanel.style.display = 'flex';
+                const states = ['Warming up Google AI...', 'Analyzing image...', 'Calculating ratings...', 'Finalizing results...'];
+                let i = 0;
+                elements.loaderText.textContent = states[i];
+                loaderInterval = setInterval(() => { i = (i + 1) % states.length; elements.loaderText.textContent = states[i]; }, 2500);
+            }
+
+            function resetUI(errorMessage = null) {
+                if(errorMessage) showErrorModal(errorMessage);
+                elements.resultContainer.style.display = 'none';
+                elements.uploadPanel.style.display = 'block';
+                elements.loaderPanel.style.display = 'none';
+                elements.cardContent.classList.remove('visible');
+                elements.uploadForm.reset();
+                if (elements.profilePic.src) URL.revokeObjectURL(elements.profilePic.src);
+                elements.profilePic.src = "";
+                uploadedFile = null;
+                elements.fileLabel.textContent = 'Click to Upload Photo';
+                elements.fileLabel.classList.remove('has-file');
+                elements.submitBtn.disabled = true;
+                if (loaderInterval) clearInterval(loaderInterval);
+            }
+
+            function showErrorModal(message) {
+                elements.errorModalMessage.textContent = message;
+                elements.errorModal.style.display = 'flex';
+            }
+
+            // --- Event Listeners Setup ---
+            elements.fileInput.addEventListener('change', e => {
+                if (e.target.files && e.target.files[0]) {
+                    uploadedFile = e.target.files[0];
+                    elements.fileLabel.textContent = `✅ ${uploadedFile.name}`;
+                    elements.fileLabel.classList.add('has-file');
+                    elements.submitBtn.disabled = !elements.nameInput.value;
+                }
+            });
+
+            elements.nameInput.addEventListener('input', () => {
+                elements.submitBtn.disabled = !(elements.nameInput.value && uploadedFile);
+            });
+
+            elements.uploadForm.addEventListener('submit', async e => {
+                e.preventDefault();
+                if (!uploadedFile || !elements.nameInput.value) return;
+                showLoader();
+                try {
+                    const aiResult = await callGeminiApi(uploadedFile);
+                    await displayResults(aiResult);
+                } catch (error) {
+                    console.error("Analysis Error:", error);
+                    resetUI(error.message);
+                }
+            });
+
+            elements.themeSelector.addEventListener('change', e => { elements.resultCard.className = e.target.value; });
+
+            elements.downloadBtn.addEventListener('click', () => {
+                elements.cardContent.classList.add('visible');
+                html2canvas(document.querySelector('#result-card'), { backgroundColor: null, scale: 3, useCORS: true, logging: false })
+                .then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `Qunick-Result-${elements.nameInput.value.trim().replace(/\s+/g, '-')}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                }).catch(err => {
+                    console.error("Download failed:", err);
+                    showErrorModal("Sorry, the image could not be downloaded. Please try again.");
+                });
+            });
+
+            elements.shareInstagram.addEventListener('click', () => { elements.instagramModal.style.display = 'flex'; });
+            elements.tryAgainBtn.addEventListener('click', () => resetUI());
+            elements.errorModalClose.addEventListener('click', () => { elements.errorModal.style.display = 'none'; });
+            elements.instagramModalClose.addEventListener('click', () => { elements.instagramModal.style.display = 'none'; });
+        });
+    </script>
+
+</body>
+</html>
